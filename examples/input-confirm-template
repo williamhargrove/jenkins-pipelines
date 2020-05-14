@@ -1,0 +1,27 @@
+node {
+  def COMMIT_HASH = null
+  def CONFIRM_COMMIT_HASH = null
+
+
+  stage ('Enter commit to deploy to production') {
+     COMMIT_HASH = input message: 'Enter commit to deploy:', parameters: [string(defaultValue: 'HEAD', description: 'Commit to deploy to production', name: 'COMMIT_HASH', trim: false)]
+
+      println(COMMIT_HASH);
+
+ }
+
+  stage ('Confirm commit to deploy to production') {
+    CONFIRM_COMMIT_HASH = input message: 'Confirm commit to deploy:', parameters: [string(defaultValue: 'HEAD', description: 'Confirm commit to deploy to production', name: 'CONFIRM_COMMIT_HASH', trim: false)]
+
+    println(CONFIRM_COMMIT_HASH)
+
+  }
+
+    if (COMMIT_HASH == CONFIRM_COMMIT_HASH) {
+        echo 'Commit hash matches'
+        println(COMMIT_HASH.take(7));
+    } else {
+        echo 'Commit hashes do not match'
+    }
+
+}

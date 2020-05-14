@@ -8,18 +8,18 @@ node {
 
         def remote = [:]
         remote.name = "stage-ui-1"
-        remote.host = "stage-ui-1.example.local"
+        remote.host = "stage-ui-1.REPLACE_ME.local"
         remote.allowAnyHosts = true
 
 
-        //slackSend color: 'good', message: "Build Started - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)", tokenCredentialId: 'Slack'
+        slackSend color: 'good', message: "Build Started - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)", tokenCredentialId: 'Slack'
 
         stage('Preparation') {
             deleteDir()
         }
 
         stage('Checkout') {
-            def scmVars = checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'amber_ui']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'Bitbucket', url: 'git@bitbucket.org:example/amber_ui.git']]])
+            def scmVars = checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'amber_ui']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: 'Bitbucket', url: 'git@bitbucket.org:REPLACE_ME/amber_ui.git']]])
             env.COMMIT = scmVars.GIT_COMMIT.take(7)
         }
 
@@ -71,12 +71,17 @@ node {
 
         stage('Distribute: Staging') {
             // deploy user has sudo and write access to nginx docRoot
-            //sshPut - copy over deploy.sh from git repo
+            //writeFile file: 'abc.sh', text: 'ls'
+            //sshCommand remote: remote, command: 'ls -la /var/deploy'
             sshPut remote: remote, from: "amber_ui/amber_ui-build-${env.COMMIT}.tgz", into: '/var/www/ui'
             // run deploy script
             sshCommand remote: remote, command: "/var/www/ui/deploy.sh ${env.COMMIT}", sudo: true
             // restart nginx
             sshCommand remote: remote, command: "sudo systemctl restart nginx", sudo: true
+
+            //sshGet remote: remote, from: 'abc.sh', into: 'bac.sh', override: true
+            //sshScript remote: remote, script: 'abc.sh'
+            //sshRemove remote: remote, path: 'abc.sh'
             }
         }
 
@@ -94,8 +99,8 @@ def notifyFailed() {
     emailext (
         attachLog: true,
         compressLog: false,
-        from: 'build@example.com',
+        from: 'build@REPLACE_ME.com',
         subject: "Failed: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
-        to: "build@example.com"
+        to: "build@REPLACE_ME.com"
     )
 }

@@ -15,22 +15,34 @@ node ('build-ruby') {
                 env.COMMIT = scmVars.GIT_COMMIT.take(7)
             }
 
-//            stage('Unit Test - Dependancies') {
-//                echo "Starting mongodb sidecar containers"
-//                docker.image('database').withRun('-p 5432:5432/tcp -p 27017:27017/tcp') { c ->
-//                   /* Wait until mongo is available */
-//                   sh 'while ! nc -z localhost 27017; do sleep 1; done'
-//                   sh '''
-//                      RBENV=~/rbenv
-//                      PATH=$PATH:${RBENV}/bin:${RBENV}/plugins/ruby-build/bin; export PATH
-//                      eval "$(rbenv init -)"
-//                      cd ${REPOSITORY}
-//                      bundle install
-//                      rspec
-//                      //RAILS_ENV=test bundle exec rspec spec --format html --out rspec_results/results.html --format RspecJunitFormatter --out rspec_results/results.xml
-//                   '''
-//                }
-//            }
+            stage('Unit Test') {
+                echo "Starting rabbitmq and postgres sidecar containers"
+                docker.image('rabbitmq').withRun('-p 15672:15672/tcp -p 5671-5672:5671-5672/tcp') { rmq ->
+                    /* Now start the postgres container*/
+                    docker.image('database').withRun('-p 5432:5432/tcp -p 27017:27017/tcp') { pg ->
+                    /* Wait until postgres is available */
+                    sh 'while ! nc -z localhost 5432; do sleep 2; done'
+                    sleep 5
+                    sh '''
+                        RBENV=~/rbenv
+                        PATH=$PATH:${RBENV}/bin:${RBENV}/plugins/ruby-build/bin; export PATH
+                        eval "$(rbenv init -)"
+                        cd ${REPOSITORY}
+                        bundle install
+                        cp -p .env .env.test
+                        # change the DB_NAME to docker version
+                        sed -i 's#DB_NAME=rks_dev#DB_NAME=rks#' .env.test
+                        sed -i 's#POSTGRES_USER=#POSTGRES_USER=rks#' .env.test
+                        bundle exec rake db:test:prepare
+                        chmod +x db/seed.rb
+                        bundle exec db/seed.rb .env.test
+                        RAILS_ENV=test bundle exec rspec --format RspecJunitFormatter --out rspec_results/results.xml
+                      '''
+                    }
+                }
+                echo "Archiving rspec results - Unit Test Step"
+                junit '**/rspec_results/results.xml'
+            }
 
 
             stage('Build Staging') {
@@ -69,8 +81,4 @@ node ('build-ruby') {
     }
 
 }
-
-//timeout(time: 3, unit: 'HOURS') {
-//    input message: 'Do you want to approve the deploy into production?', parameters: [booleanParam(defaultValue: false, description: '', name: 'PROCEED')]
-//}
 
